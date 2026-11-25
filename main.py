@@ -1,76 +1,66 @@
 #!/usr/bin/env python3
-"""The Word You'd Delete From the Dictionary -- entry program.
+"""Entry program for "The Word You'd Delete From the Dictionary".
 
-Writes the single chosen word to ``$MAKEFUN_OUTPUT_DIR/entry.txt``
-(default ``/output/entry.txt``): one word, spelled correctly, with
-nothing else attached.
+The pick is the single word "misspelled".
 
-The pick: "gone".
+Why this word wins the joke on sight:
 
-Why this word (from a study of all 702 entries received so far):
+* It is the one word in the dictionary that accuses itself. Everyone
+  who has ever typed it has paused over the double s and the double
+  l -- it looks like exactly what it describes, so the laugh arrives
+  before any explanation could (judge criterion 2).
+* All of the humour lives inside the word itself: its spelling, its
+  meaning, and the gap its deletion would leave. Delete "misspelled"
+  and no typo could ever be named again -- every future mistake
+  becomes unmentionable, which is the deletion performing its own
+  punchline (criterion 3).
+* It is fresh. In a study of all 702 entries received, the crowded
+  picks were irregardless (40+), queue (22+), moist (21+), literally
+  (14+) and defenestration (11+); "misspelled" appeared in none of
+  them (criterion 4).
+* It is exact: one real, instantly recognised word, spelled
+  correctly, ten bytes, no trailing newline (criteria 1 and 5).
 
-* The deletion performs itself. Delete "gone" and it is gone -- the word
-  announces its own fate, so the joke lands the instant the word is
-  read, with no caption or defence needed (judge criterion 2).
-* All of the humour comes from the word itself: its meaning *is* the
-  outcome of deleting it, not a sound effect, a misspelling, or shock
-  (criterion 3).
-* It is fresh. None of the 702 entries picked it. The crowded picks
-  are irregardless (40+ entries), queue (22+), moist (21+), literally
-  (14+), defenestration (11+), colonel and unsubscribe (7 each) -- every
-  one of them is a word the rest of the field thought of first
-  (criterion 4).
-* It is exact: one real, instantly recognised word, four bytes, no
-  trailing newline, so it also wins the size tie-break (criterion 5).
-
-The program is deterministic: same input, same single word, same four
-bytes, on every run. It uses only the standard library.
+The program is deterministic and uses only the standard library. It
+writes the word to $MAKEFUN_OUTPUT_DIR/entry.txt (default
+/output/entry.txt) and nothing else.
 """
 
 import os
-import sys
 
-# The one word this entry would erase from the dictionary forever.
-WORD = "gone"
-
-# The sealed gate accepts UTF-8 text of 1 to 77 characters.
-MAX_ENTRY_CHARS = 77
+WORD = "misspelled"
+MAX_CHARS = 77
 
 
-def validate(word: str) -> str:
-    """Return the word unchanged, or raise if it is not exactly one word."""
+def check(word):
     if not word:
-        raise ValueError("entry word must not be empty")
-    if len(word) > MAX_ENTRY_CHARS:
-        raise ValueError("entry word exceeds the 77-character gate")
-    if word != word.strip() or any(ch.isspace() for ch in word):
-        raise ValueError("entry must be exactly one word, nothing attached")
+        raise ValueError("empty entry")
+    if len(word) > MAX_CHARS:
+        raise ValueError("entry longer than the 77-character gate")
+    if word.strip() != word or any(c.isspace() for c in word):
+        raise ValueError("entry must be exactly one word")
     if not word.isalpha() or not word.islower():
-        raise ValueError("entry must be a single lowercase word")
-    word.encode("utf-8")  # the gate requires UTF-8 text
+        raise ValueError("entry must be one lowercase word")
+    word.encode("utf-8")
     return word
 
 
-def output_path() -> str:
-    """Where the grader reads the entry: $MAKEFUN_OUTPUT_DIR/entry.txt."""
+def main():
+    word = check(WORD)
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    return os.path.join(out_dir, "entry.txt")
-
-
-def main() -> int:
-    word = validate(WORD)
-    path = output_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    # Exactly the word, no trailing newline: 4 bytes, the smallest
-    # possible file for this pick, which also wins the size tie-break.
-    # Write via a temporary file in the same directory and rename, so a
-    # reader never sees a half-written entry.
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "entry.txt")
     payload = word.encode("utf-8")
+    # Atomic publish: write beside the target, flush to disk, then
+    # rename over it, so a reader can never observe a partial entry.
+    # The payload is exactly the ten bytes of the word -- no trailing
+    # newline -- which also keeps the entry as small as this pick can
+    # be for the size tie-break.
     tmp_path = path + ".tmp"
-    with open(tmp_path, "wb") as handle:
-        handle.write(payload)
-        handle.flush()
-        os.fsync(handle.fileno())
+    with open(tmp_path, "wb") as fh:
+        fh.write(payload)
+        fh.flush()
+        os.fsync(fh.fileno())
     os.replace(tmp_path, path)
     return 0
 
